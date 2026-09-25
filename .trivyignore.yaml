@@ -1,0 +1,12 @@
+# Trivy DS-0002 normally requires a Dockerfile USER directive.
+# This Home Assistant App intentionally starts as root only in /run.sh so it
+# can read Supervisor's root-owned /data/options.json. The bootstrap copies
+# that file to a private antbridge-owned path and then execs the long-running
+# Python process through gosu as UID/GID 10001.
+#
+# This exception is guarded by tests/test_container_options_permissions.sh,
+# which asserts both the root-only options bootstrap and the final UID 10001.
+misconfigurations:
+  - id: AVD-DS-0002
+    paths:
+      - "ant_trainer_bridge/Dockerfile"
