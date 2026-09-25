@@ -230,7 +230,7 @@ def test_supervisor_mqtt_service_non_200(monkeypatch, bridge_module):
             pass
 
     monkeypatch.setattr(bridge_module.http.client, "HTTPConnection", FakeConnection)
-    assert bridge_module.supervisor_mqtt_service() is None
+    assert bridge_module.real_supervisor_mqtt_service() is None
 
 
 def test_simulation_runs_and_stops(bridge_module):
