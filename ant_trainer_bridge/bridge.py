@@ -24,6 +24,7 @@ def load_options():
         "mqtt_password": "",
         "mqtt_base_topic": "home/trainer",
         "ant_device_id": 0,
+        "hr_device_id": 0,
         "active_power_threshold": 20,
         "active_timeout_seconds": 15,
     }
@@ -61,7 +62,6 @@ def resolve_mqtt(options):
             "password": options["mqtt_password"] or service.get("password", ""),
             "ssl": bool(service.get("ssl", False)),
         }
-
     LOG.warning("Supervisor MQTT service unavailable; using configured MQTT settings")
     return {
         "host": options["mqtt_host"] or "core-mosquitto",
@@ -82,11 +82,12 @@ class Bridge:
             "power": 0,
             "cadence": 0,
             "speed": None,
+            "heart_rate": None,
             "active": False,
             "ant_device_id": None,
+            "hr_device_id": None,
             "source": "simulation" if self.o["simulation"] else "ant",
         }
-
         self.mqtt_config = resolve_mqtt(options)
         self.mqtt = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
@@ -102,16 +103,8 @@ class Bridge:
         self.mqtt.will_set(f"{self.base}/availability", "offline", retain=True)
 
     def connect(self):
-        LOG.info(
-            "Connecting to MQTT at %s:%s",
-            self.mqtt_config["host"],
-            self.mqtt_config["port"],
-        )
-        self.mqtt.connect(
-            self.mqtt_config["host"],
-            self.mqtt_config["port"],
-            60,
-        )
+        LOG.info("Connecting to MQTT at %s:%s", self.mqtt_config["host"], self.mqtt_config["port"])
+        self.mqtt.connect(self.mqtt_config["host"], self.mqtt_config["port"], 60)
         self.mqtt.loop_start()
         self.mqtt.publish(f"{self.base}/availability", "online", retain=True)
         self.publish_discovery()
@@ -120,59 +113,21 @@ class Bridge:
     def publish_discovery(self):
         device = {
             "identifiers": ["ant_trainer_bridge"],
-            "name": "ANT+ Trainer",
+            "name": "ANT+ Training Telemetry",
             "manufacturer": "ANT+",
-            "model": "FE-C Bridge",
-            "sw_version": "0.1.0",
+            "model": "FE-C + HR Bridge",
+            "sw_version": "0.2.0",
         }
         availability = [{"topic": f"{self.base}/availability"}]
         entities = {
-            "power": {
-                "component": "sensor",
-                "name": "Trainer Power",
-                "device_class": "power",
-                "unit_of_measurement": "W",
-                "state_class": "measurement",
-                "value_template": "{{ value_json.power }}",
-            },
-            "cadence": {
-                "component": "sensor",
-                "name": "Trainer Cadence",
-                "unit_of_measurement": "rpm",
-                "state_class": "measurement",
-                "icon": "mdi:rotate-360",
-                "value_template": "{{ value_json.cadence }}",
-            },
-            "speed": {
-                "component": "sensor",
-                "name": "Trainer Speed",
-                "unit_of_measurement": "km/h",
-                "state_class": "measurement",
-                "device_class": "speed",
-                "value_template": "{{ value_json.speed if value_json.speed is not none else 'unknown' }}",
-            },
-            "active": {
-                "component": "binary_sensor",
-                "name": "Trainer Active",
-                "device_class": "running",
-                "value_template": "{{ 'ON' if value_json.active else 'OFF' }}",
-                "payload_on": "ON",
-                "payload_off": "OFF",
-            },
-            "ant_device_id": {
-                "component": "sensor",
-                "name": "ANT Device ID",
-                "icon": "mdi:identifier",
-                "value_template": "{{ value_json.ant_device_id if value_json.ant_device_id is not none else 'unknown' }}",
-                "entity_category": "diagnostic",
-            },
-            "source": {
-                "component": "sensor",
-                "name": "Bridge Source",
-                "icon": "mdi:source-branch",
-                "value_template": "{{ value_json.source }}",
-                "entity_category": "diagnostic",
-            },
+            "power": {"component":"sensor","name":"Trainer Power","device_class":"power","unit_of_measurement":"W","state_class":"measurement","value_template":"{{ value_json.power }}"},
+            "cadence": {"component":"sensor","name":"Trainer Cadence","unit_of_measurement":"rpm","state_class":"measurement","icon":"mdi:rotate-360","value_template":"{{ value_json.cadence }}"},
+            "speed": {"component":"sensor","name":"Trainer Speed","unit_of_measurement":"km/h","state_class":"measurement","device_class":"speed","value_template":"{{ value_json.speed if value_json.speed is not none else 'unknown' }}"},
+            "heart_rate": {"component":"sensor","name":"Heart Rate","unit_of_measurement":"bpm","state_class":"measurement","device_class":"heart_rate","value_template":"{{ value_json.heart_rate if value_json.heart_rate is not none else 'unknown' }}"},
+            "active": {"component":"binary_sensor","name":"Trainer Active","device_class":"running","value_template":"{{ 'ON' if value_json.active else 'OFF' }}","payload_on":"ON","payload_off":"OFF"},
+            "ant_device_id": {"component":"sensor","name":"Trainer ANT Device ID","icon":"mdi:identifier","value_template":"{{ value_json.ant_device_id if value_json.ant_device_id is not none else 'unknown' }}","entity_category":"diagnostic"},
+            "hr_device_id": {"component":"sensor","name":"HR ANT Device ID","icon":"mdi:identifier","value_template":"{{ value_json.hr_device_id if value_json.hr_device_id is not none else 'unknown' }}","entity_category":"diagnostic"},
+            "source": {"component":"sensor","name":"Bridge Source","icon":"mdi:source-branch","value_template":"{{ value_json.source }}","entity_category":"diagnostic"},
         }
         for object_id, config in entities.items():
             config = dict(config)
@@ -184,24 +139,19 @@ class Bridge:
                 "availability": availability,
                 "device": device,
             }
-            topic = (
-                f"homeassistant/{component}/ant_trainer_bridge/"
-                f"{object_id}/config"
-            )
+            topic = f"homeassistant/{component}/ant_trainer_bridge/{object_id}/config"
             self.mqtt.publish(topic, json.dumps(payload), retain=True)
 
     def publish_state(self):
         now = time.monotonic()
-        self.latest["active"] = (
-            now - self.last_active
-        ) <= int(self.o["active_timeout_seconds"])
+        self.latest["active"] = (now - self.last_active) <= int(self.o["active_timeout_seconds"])
         self.mqtt.publish(
             f"{self.base}/state",
             json.dumps(self.latest, separators=(",", ":")),
             retain=False,
         )
 
-    def update(self, power=None, cadence=None, speed=None, ant_device_id=None):
+    def update(self, power=None, cadence=None, speed=None, heart_rate=None, ant_device_id=None, hr_device_id=None):
         if power is not None:
             try:
                 power = int(round(float(power)))
@@ -210,7 +160,6 @@ class Bridge:
                     self.last_active = time.monotonic()
             except (TypeError, ValueError):
                 pass
-
         if cadence is not None:
             try:
                 cadence = int(round(float(cadence)))
@@ -218,102 +167,105 @@ class Bridge:
                     self.latest["cadence"] = cadence
             except (TypeError, ValueError):
                 pass
-
         if speed is not None:
             try:
                 speed = float(speed)
                 if 0 <= speed < 65.535:
-                    # OpenANT decodes FE-C speed in metres per second.
                     self.latest["speed"] = round(speed * 3.6, 1)
             except (TypeError, ValueError):
                 pass
-
+        if heart_rate is not None:
+            try:
+                heart_rate = int(round(float(heart_rate)))
+                if 20 <= heart_rate <= 250:
+                    self.latest["heart_rate"] = heart_rate
+            except (TypeError, ValueError):
+                pass
         if ant_device_id is not None:
             self.latest["ant_device_id"] = ant_device_id
-
+        if hr_device_id is not None:
+            self.latest["hr_device_id"] = hr_device_id
         self.publish_state()
 
     def run_simulation(self):
         LOG.info("Simulation mode enabled")
         steps = [
-            (0, 0),
-            (85, 78),
-            (125, 84),
-            (165, 88),
-            (205, 91),
-            (245, 94),
-            (310, 98),
-            (155, 86),
+            (0, 0, 82), (85, 78, 98), (125, 84, 110), (165, 88, 124),
+            (205, 91, 138), (245, 94, 151), (310, 98, 165), (155, 86, 128),
         ]
         self.latest["ant_device_id"] = 99999
-
+        self.latest["hr_device_id"] = 88888
         while not self.stop.is_set():
-            for power, cadence in steps:
+            for power, cadence, hr in steps:
                 if self.stop.is_set():
                     break
-                LOG.info("SIM power=%s W cadence=%s rpm", power, cadence)
-                self.update(power=power, cadence=cadence)
+                LOG.info("SIM power=%s W cadence=%s rpm hr=%s bpm", power, cadence, hr)
+                self.update(power=power, cadence=cadence, heart_rate=hr)
                 self.stop.wait(8)
 
     def run_ant(self):
         from openant.easy.node import Node
         from openant.devices import ANTPLUS_NETWORK_KEY
         from openant.devices.fitness_equipment import FitnessEquipment
+        from openant.devices.heart_rate import HeartRate, HeartRateData
 
         LOG.info(
-            "Starting passive ANT+ FE-C listener; requested device id=%s",
+            "Starting passive ANT+ listeners; trainer id=%s hr id=%s",
             self.o["ant_device_id"],
+            self.o["hr_device_id"],
         )
         node = Node()
         node.set_network_key(0x00, ANTPLUS_NETWORK_KEY)
-        device = FitnessEquipment(
-            node,
-            device_id=int(self.o["ant_device_id"]),
-        )
 
-        def on_found():
-            LOG.info(
-                "ANT+ fitness equipment found: device_id=%s",
-                device.device_id,
-            )
-            self.latest["ant_device_id"] = device.device_id
-            self.publish_state()
+        trainer = FitnessEquipment(node, device_id=int(self.o["ant_device_id"]))
+        hr = HeartRate(node, device_id=int(self.o["hr_device_id"]))
 
-        def on_data(page, page_name, data):
+        def on_trainer_found():
+            LOG.info("ANT+ fitness equipment found: device_id=%s", trainer.device_id)
+            self.update(ant_device_id=trainer.device_id)
+
+        def on_trainer_data(page, page_name, data):
             try:
                 fields = data.to_influx_json({}).get("fields", {})
                 self.update(
                     power=fields.get("instantaneous_power"),
                     cadence=fields.get("cadence"),
                     speed=fields.get("speed"),
-                    ant_device_id=device.device_id,
+                    ant_device_id=trainer.device_id,
                 )
             except Exception:
-                LOG.exception(
-                    "Failed to decode FE-C data page %s (%s)",
-                    page,
-                    page_name,
+                LOG.exception("Failed to decode FE-C data page %s (%s)", page, page_name)
+
+        def on_hr_found():
+            LOG.info("ANT+ heart-rate monitor found: device_id=%s", hr.device_id)
+            self.update(hr_device_id=hr.device_id)
+
+        def on_hr_data(page, page_name, data):
+            if isinstance(data, HeartRateData):
+                self.update(
+                    heart_rate=data.heart_rate,
+                    hr_device_id=hr.device_id,
                 )
 
-        device.on_found = on_found
-        device.on_device_data = on_data
+        trainer.on_found = on_trainer_found
+        trainer.on_device_data = on_trainer_data
+        hr.on_found = on_hr_found
+        hr.on_device_data = on_hr_data
 
         try:
             node.start()
         finally:
-            try:
-                device.close_channel()
-            finally:
-                node.stop()
+            for device in (trainer, hr):
+                try:
+                    device.close_channel()
+                except Exception:
+                    LOG.exception("Error closing ANT+ channel")
+            node.stop()
 
     def close(self):
         self.stop.set()
         try:
-            self.mqtt.publish(
-                f"{self.base}/availability",
-                "offline",
-                retain=True,
-            )
+            self.mqtt.publish(f"{self.base}/availability", "offline", retain=True)
             self.mqtt.disconnect()
             self.mqtt.loop_stop()
         except Exception:
@@ -321,10 +273,7 @@ class Bridge:
 
 
 def main():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     options = load_options()
     bridge = Bridge(options)
 
