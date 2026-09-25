@@ -344,3 +344,39 @@ def test_open_ant_node_claims_before_privilege_drop(monkeypatch, bridge_module):
 
     assert result is sentinel
     assert events == ["node_opened", "privileges_dropped"]
+
+
+def test_stop_ant_node_disposes_usb_without_kernel_reattach(monkeypatch, bridge_module):
+    events = []
+
+    class FakeDriver:
+        def __init__(self):
+            self.dev = object()
+
+        def close(self):
+            events.append("reattach_attempt")
+
+    class FakeAnt:
+        def __init__(self):
+            self._driver = FakeDriver()
+
+    class FakeNode:
+        def __init__(self):
+            self.ant = FakeAnt()
+
+        def stop(self):
+            events.append("node_stop")
+            self.ant._driver.close()
+
+    monkeypatch.setattr(
+        bridge_module,
+        "dispose_usb_resources",
+        lambda dev: events.append(("dispose", dev)),
+    )
+
+    node = FakeNode()
+    dev = node.ant._driver.dev
+
+    bridge_module.stop_ant_node(node)
+
+    assert events == [("dispose", dev), "node_stop"]
