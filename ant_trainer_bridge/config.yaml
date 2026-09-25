@@ -1,5 +1,5 @@
 name: ANT+ Trainer Bridge
-version: "0.2.0"
+version: "0.2.1"
 slug: ant_trainer_bridge
 description: Passive ANT+ FE-C smart-trainer and heart-rate telemetry bridge to Home Assistant MQTT.
 url: https://github.com/deanpemberton/ant-trainer-bridge
