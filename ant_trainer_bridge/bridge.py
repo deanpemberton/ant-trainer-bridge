@@ -65,19 +65,19 @@ def stop_ant_node(node):
 # Deliberately slow simulation profile for dashboard and automation testing.
 # Power values are chosen to traverse Z1-Z6 for the current 215 W cycling FTP.
 SIMULATION_STEPS = [
-    {"label": "Idle", "power": 0, "cadence": 0, "heart_rate": 82, "duration": 10},
-    {"label": "Z1 Recovery", "power": 95, "cadence": 78, "heart_rate": 98, "duration": 30},
-    {"label": "Z2 Endurance", "power": 140, "cadence": 84, "heart_rate": 112, "duration": 30},
-    {"label": "Z3 Tempo", "power": 180, "cadence": 88, "heart_rate": 126, "duration": 30},
-    {"label": "Z4 Threshold", "power": 215, "cadence": 92, "heart_rate": 142, "duration": 35},
-    {"label": "Z5 VO2", "power": 245, "cadence": 96, "heart_rate": 156, "duration": 30},
-    {"label": "Z6 Anaerobic", "power": 285, "cadence": 100, "heart_rate": 170, "duration": 25},
-    {"label": "Z5 VO2", "power": 245, "cadence": 96, "heart_rate": 160, "duration": 25},
-    {"label": "Z4 Threshold", "power": 215, "cadence": 92, "heart_rate": 150, "duration": 25},
-    {"label": "Z3 Tempo", "power": 180, "cadence": 88, "heart_rate": 138, "duration": 25},
-    {"label": "Z2 Endurance", "power": 140, "cadence": 84, "heart_rate": 122, "duration": 25},
-    {"label": "Z1 Recovery", "power": 95, "cadence": 78, "heart_rate": 105, "duration": 30},
-    {"label": "Idle", "power": 0, "cadence": 0, "heart_rate": 88, "duration": 10},
+    {"label": "Idle", "power": 0, "cadence": 0, "heart_rate": 82, "resistance": 0, "duration": 10},
+    {"label": "Z1 Recovery", "power": 95, "cadence": 78, "heart_rate": 98, "resistance": 18, "duration": 30},
+    {"label": "Z2 Endurance", "power": 140, "cadence": 84, "heart_rate": 112, "resistance": 28, "duration": 30},
+    {"label": "Z3 Tempo", "power": 180, "cadence": 88, "heart_rate": 126, "resistance": 38, "duration": 30},
+    {"label": "Z4 Threshold", "power": 215, "cadence": 92, "heart_rate": 142, "resistance": 48, "duration": 35},
+    {"label": "Z5 VO2", "power": 245, "cadence": 96, "heart_rate": 156, "resistance": 58, "duration": 30},
+    {"label": "Z6 Anaerobic", "power": 285, "cadence": 100, "heart_rate": 170, "resistance": 70, "duration": 25},
+    {"label": "Z5 VO2", "power": 245, "cadence": 96, "heart_rate": 160, "resistance": 58, "duration": 25},
+    {"label": "Z4 Threshold", "power": 215, "cadence": 92, "heart_rate": 150, "resistance": 48, "duration": 25},
+    {"label": "Z3 Tempo", "power": 180, "cadence": 88, "heart_rate": 138, "resistance": 38, "duration": 25},
+    {"label": "Z2 Endurance", "power": 140, "cadence": 84, "heart_rate": 122, "resistance": 28, "duration": 25},
+    {"label": "Z1 Recovery", "power": 95, "cadence": 78, "heart_rate": 105, "resistance": 18, "duration": 30},
+    {"label": "Idle", "power": 0, "cadence": 0, "heart_rate": 88, "resistance": 0, "duration": 10},
 ]
 
 
@@ -219,7 +219,7 @@ class Bridge:
             "name": "ANT+ Training Telemetry",
             "manufacturer": "ANT+",
             "model": "FE-C + HR Bridge",
-            "sw_version": "0.3.7",
+            "sw_version": "0.3.8",
         }
         availability = [{"topic": f"{self.base}/availability"}]
         entities = {
@@ -421,12 +421,13 @@ class Bridge:
         while not self.stop.is_set():
             for step in SIMULATION_STEPS:
                 LOG.info(
-                    "SIM entering %s for %ss: power=%s W cadence=%s rpm hr=%s bpm",
+                    "SIM entering %s for %ss: power=%s W cadence=%s rpm hr=%s bpm resistance=%s%%",
                     step["label"],
                     step["duration"],
                     step["power"],
                     step["cadence"],
                     step["heart_rate"],
+                    step["resistance"],
                 )
                 for _ in range(step["duration"]):
                     if self.stop.is_set():
@@ -435,6 +436,7 @@ class Bridge:
                         power=step["power"],
                         cadence=step["cadence"],
                         heart_rate=step["heart_rate"],
+                        resistance=step["resistance"],
                         trainer_packet=True,
                         hr_packet=True,
                     )
