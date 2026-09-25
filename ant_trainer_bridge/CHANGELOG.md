@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.3
+- Make simulation traverse Z1-Z6 slowly, then recover back down, for real-time cockpit testing.
+- Add a regression test requiring full-zone coverage and minimum dwell time per simulated zone.
+
 ## 0.3.2
 - Fix Home Assistant startup when `/data/options.json` is root-only.
 - Entrypoint now copies options into a private file owned by the unprivileged app user, then drops privileges before starting Python.
