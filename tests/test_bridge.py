@@ -171,3 +171,92 @@ def test_connect_publishes_availability_discovery_and_state(bridge_module):
     assert ("home/trainer/availability", "online", True) in bridge.mqtt.published
     assert any(topic.endswith("/config") for topic, _, _ in bridge.mqtt.published)
     assert any(topic == "home/trainer/state" for topic, _, _ in bridge.mqtt.published)
+
+
+def test_supervisor_mqtt_service_without_token(monkeypatch, bridge_module):
+    monkeypatch.delenv("SUPERVISOR_TOKEN", raising=False)
+    assert bridge_module.supervisor_mqtt_service() is None
+
+
+def test_supervisor_mqtt_service_success(monkeypatch, bridge_module):
+    monkeypatch.setenv("SUPERVISOR_TOKEN", "token")
+
+    class FakeResponse:
+        status = 200
+
+        def read(self, *args, **kwargs):
+            return b'{"result":"ok","data":{"host":"broker","port":1883}}'
+
+    class FakeConnection:
+        def __init__(self, host, timeout):
+            assert host == "supervisor"
+            assert timeout == 5
+            self.closed = False
+
+        def request(self, method, path, headers):
+            assert method == "GET"
+            assert path == "/services/mqtt"
+            assert headers["Authorization"] == "Bearer token"
+
+        def getresponse(self):
+            return FakeResponse()
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr(bridge_module.http.client, "HTTPConnection", FakeConnection)
+    result = bridge_module.supervisor_mqtt_service()
+
+    assert result == {"host": "broker", "port": 1883}
+
+
+def test_supervisor_mqtt_service_non_200(monkeypatch, bridge_module):
+    monkeypatch.setenv("SUPERVISOR_TOKEN", "token")
+
+    class FakeResponse:
+        status = 503
+
+    class FakeConnection:
+        def __init__(self, host, timeout):
+            pass
+
+        def request(self, method, path, headers):
+            pass
+
+        def getresponse(self):
+            return FakeResponse()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(bridge_module.http.client, "HTTPConnection", FakeConnection)
+    assert bridge_module.supervisor_mqtt_service() is None
+
+
+def test_simulation_runs_and_stops(bridge_module):
+    bridge = make_bridge(bridge_module)
+
+    class FakeStop:
+        def __init__(self):
+            self.calls = 0
+
+        def is_set(self):
+            self.calls += 1
+            return self.calls > 4
+
+        def wait(self, seconds):
+            return False
+
+    bridge.stop = FakeStop()
+    bridge.run_simulation()
+
+    assert bridge.latest["ant_device_id"] == 99999
+    assert bridge.latest["hr_device_id"] == 88888
+    assert any(topic == "home/trainer/state" for topic, _, _ in bridge.mqtt.published)
+
+
+def test_close_marks_bridge_offline(bridge_module):
+    bridge = make_bridge(bridge_module)
+    bridge.close()
+
+    assert ("home/trainer/availability", "offline", True) in bridge.mqtt.published
