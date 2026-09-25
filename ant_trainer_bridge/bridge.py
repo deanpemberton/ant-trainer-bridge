@@ -19,10 +19,6 @@ LOG = logging.getLogger("ant-trainer-bridge")
 def load_options():
     defaults = {
         "simulation": True,
-        "mqtt_host": "",
-        "mqtt_port": 1883,
-        "mqtt_username": "",
-        "mqtt_password": "",
         "mqtt_base_topic": "home/trainer",
         "ant_device_id": 0,
         "hr_device_id": 0,
