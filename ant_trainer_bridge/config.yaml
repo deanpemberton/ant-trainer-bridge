@@ -13,9 +13,11 @@ usb: true
 udev: true
 init: false
 image: ghcr.io/deanpemberton/ant-trainer-bridge
+services:
+  - mqtt:need
 options:
   simulation: true
-  mqtt_host: core-mosquitto
+  mqtt_host: ""
   mqtt_port: 1883
   mqtt_username: ""
   mqtt_password: ""
