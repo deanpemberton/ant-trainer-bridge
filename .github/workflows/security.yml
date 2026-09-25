@@ -1,0 +1,59 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install security tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit==1.8.6 pip-audit==2.9.0
+      - name: Bandit SAST
+        run: bandit -r ant_trainer_bridge -x tests -ll
+      - name: Python dependency audit
+        run: pip-audit -r ant_trainer_bridge/requirements.txt
+
+  trivy-filesystem:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem, secrets and misconfiguration scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  trivy-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build local security-test image
+        run: docker build -t ant-trainer-bridge:security ./ant_trainer_bridge
+      - name: Trivy container scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ant-trainer-bridge:security
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
