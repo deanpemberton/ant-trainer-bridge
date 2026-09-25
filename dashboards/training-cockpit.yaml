@@ -1,0 +1,212 @@
+title: Training Cockpit
+views:
+  - title: Ride
+    path: ride
+    icon: mdi:bike
+    type: sections
+    max_columns: 3
+    badges:
+      - type: entity
+        entity: binary_sensor.ant_training_telemetry_trainer_active
+        name: Trainer
+        show_name: true
+        show_state: true
+      - type: entity
+        entity: sensor.ant_training_telemetry_bridge_source
+        name: Source
+        show_name: true
+        show_state: true
+      - type: entity
+        entity: sensor.trainer_power_zone
+        name: Zone
+        show_name: true
+        show_state: true
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Live effort
+            icon: mdi:bike-fast
+          - type: tile
+            entity: sensor.ant_training_telemetry_trainer_power
+            name: Power
+            icon: mdi:flash
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_power_10s
+            name: Power 10s
+            icon: mdi:chart-timeline-variant
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_heart_rate
+            name: Heart rate
+            icon: mdi:heart-pulse
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_trainer_cadence
+            name: Cadence
+            icon: mdi:rotate-360
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.trainer_power_zone
+            name: Power zone
+            icon: mdi:gauge
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: input_number.cycling_ftp
+            name: FTP
+            icon: mdi:lightning-bolt
+            grid_options:
+              columns: 6
+              rows: 1
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Power smoothing
+            icon: mdi:sine-wave
+          - type: tile
+            entity: sensor.ant_training_telemetry_power_3s
+            name: 3 second
+            grid_options:
+              columns: 4
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_power_10s
+            name: 10 second
+            grid_options:
+              columns: 4
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_power_30s
+            name: 30 second
+            grid_options:
+              columns: 4
+              rows: 1
+          - type: history-graph
+            title: Power and heart rate
+            hours_to_show: 1
+            entities:
+              - entity: sensor.ant_training_telemetry_power_10s
+                name: Power 10s
+              - entity: sensor.ant_training_telemetry_heart_rate
+                name: Heart rate
+            grid_options:
+              columns: full
+              rows: 4
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Session
+            icon: mdi:timer-outline
+          - type: tile
+            entity: sensor.ant_training_telemetry_session_elapsed
+            name: Elapsed
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_session_average_power
+            name: Avg power
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_session_max_power
+            name: Max power
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_session_average_heart_rate
+            name: Avg HR
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_session_max_heart_rate
+            name: Max HR
+            grid_options:
+              columns: 6
+              rows: 1
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Training controls
+            icon: mdi:tune-variant
+          - type: tile
+            entity: input_boolean.downstairs_training_mode
+            name: Training mode
+            features:
+              - type: toggle
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: input_boolean.trainer_zone_lighting
+            name: Zone lighting
+            features:
+              - type: toggle
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: climate.office
+            name: Office AC
+            grid_options:
+              columns: 12
+              rows: 1
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: ANT+ health
+            icon: mdi:access-point-check
+          - type: tile
+            entity: binary_sensor.ant_training_telemetry_trainer_signal
+            name: Trainer signal
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_trainer_packet_age
+            name: Trainer packet age
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: binary_sensor.ant_training_telemetry_hr_signal
+            name: HR signal
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_hr_packet_age
+            name: HR packet age
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_trainer_ant_device_id
+            name: Trainer ANT ID
+            grid_options:
+              columns: 6
+              rows: 1
+          - type: tile
+            entity: sensor.ant_training_telemetry_hr_ant_device_id
+            name: HR ANT ID
+            grid_options:
+              columns: 6
+              rows: 1
