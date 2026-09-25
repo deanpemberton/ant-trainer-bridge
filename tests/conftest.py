@@ -47,6 +47,7 @@ def bridge_module(monkeypatch):
             pass
 
     monkeypatch.setattr(module.mqtt, "Client", FakeMqttClient)
+    module.real_supervisor_mqtt_service = module.supervisor_mqtt_service
     monkeypatch.setattr(
         module,
         "supervisor_mqtt_service",
