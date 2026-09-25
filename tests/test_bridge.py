@@ -71,6 +71,7 @@ def test_discovery_contains_smoothing_session_and_health_entities(bridge_module)
         "power_3s",
         "power_10s",
         "power_30s",
+        "resistance",
         "heart_rate",
         "session_elapsed",
         "session_avg_power",
@@ -151,6 +152,23 @@ def test_invalid_hr_and_cadence_are_ignored(bridge_module):
 
     assert bridge.latest["heart_rate"] == 120
     assert bridge.latest["cadence"] == 80
+
+
+def test_resistance_is_recorded_as_percentage(bridge_module):
+    bridge = make_bridge(bridge_module)
+
+    bridge.update(resistance=37.5)
+
+    assert bridge.latest["resistance"] == 37.5
+
+
+def test_invalid_resistance_is_ignored(bridge_module):
+    bridge = make_bridge(bridge_module)
+    bridge.latest["resistance"] = 25.0
+
+    bridge.update(resistance=101)
+
+    assert bridge.latest["resistance"] == 25.0
 
 
 def test_speed_is_converted_from_mps_to_kph(bridge_module):
