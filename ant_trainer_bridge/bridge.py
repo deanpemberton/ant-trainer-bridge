@@ -35,6 +35,32 @@ def open_ant_node(node_factory):
     return node
 
 
+def dispose_usb_resources(dev):
+    """Release libusb resources without trying to reattach a kernel driver."""
+    import usb.util
+    usb.util.dispose_resources(dev)
+
+
+def stop_ant_node(node):
+    """Stop OpenANT cleanly after privileges have already been dropped.
+
+    OpenANT 1.3.4 unconditionally calls attach_kernel_driver() from the USB
+    driver's close() method. That operation needs privilege on HAOS and fails
+    after the bridge has permanently dropped to UID/GID 10001. On process
+    shutdown we only need to release libusb resources; the host kernel will
+    reprobe/rebind the device as appropriate.
+    """
+    driver = getattr(getattr(node, "ant", None), "_driver", None)
+    dev = getattr(driver, "dev", None)
+
+    if driver is not None:
+        if dev is not None:
+            dispose_usb_resources(dev)
+        driver.close = lambda: None
+
+    node.stop()
+
+
 
 # Deliberately slow simulation profile for dashboard and automation testing.
 # Power values are chosen to traverse Z1-Z6 for the current 215 W cycling FTP.
@@ -192,7 +218,7 @@ class Bridge:
             "name": "ANT+ Training Telemetry",
             "manufacturer": "ANT+",
             "model": "FE-C + HR Bridge",
-            "sw_version": "0.3.4",
+            "sw_version": "0.3.5",
         }
         availability = [{"topic": f"{self.base}/availability"}]
         entities = {
