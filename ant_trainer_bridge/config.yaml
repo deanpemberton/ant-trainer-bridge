@@ -1,5 +1,5 @@
 name: ANT+ Trainer Bridge
-version: "0.3.0"
+version: "0.3.1"
 slug: ant_trainer_bridge
 description: Passive ANT+ FE-C smart-trainer and heart-rate telemetry bridge to Home Assistant MQTT.
 url: https://github.com/deanpemberton/ant-trainer-bridge
@@ -17,10 +17,6 @@ services:
   - mqtt:need
 options:
   simulation: true
-  mqtt_host: ""
-  mqtt_port: 1883
-  mqtt_username: ""
-  mqtt_password: ""
   mqtt_base_topic: home/trainer
   ant_device_id: 0
   hr_device_id: 0
@@ -29,10 +25,6 @@ options:
   packet_stale_seconds: 5
 schema:
   simulation: bool
-  mqtt_host: str
-  mqtt_port: port
-  mqtt_username: str
-  mqtt_password: password
   mqtt_base_topic: str
   ant_device_id: int
   hr_device_id: int
