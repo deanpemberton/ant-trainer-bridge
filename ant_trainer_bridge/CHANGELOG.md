@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.8
+- Add ANT+ FE-C resistance telemetry from General Settings pages.
+- Normalize OpenANT's `resistence` field spelling to `resistance` in MQTT state and Home Assistant.
+- Add a Trainer Resistance (%) MQTT-discovered sensor and simulator coverage.
+- Add regression tests for resistance discovery, valid values, and range rejection.
+
 ## 0.3.7
 - Keep packet-age diagnostics at 0 while ANT streams are healthy to avoid Home Assistant recorder churn.
 - Report packet age in whole seconds only after a stream becomes stale.
