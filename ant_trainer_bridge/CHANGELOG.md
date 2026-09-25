@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+- Add 3 s, 10 s and 30 s power smoothing sensors.
+- Add live session elapsed time, average/max power and average/max heart rate.
+- Add trainer/HR packet-age sensors and connectivity diagnostics.
+- Improve simulation cadence to one sample per second so smoothing and signal-health paths can be tested properly.
+- Add a ready-to-use Training Cockpit Lovelace dashboard template.
+
 ## 0.2.1
 - Fix Home Assistant MQTT discovery schema for heart-rate and speed sensors.
 
