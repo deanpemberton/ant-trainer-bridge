@@ -7,65 +7,110 @@ Initial target hardware:
 - Home Assistant Green (aarch64)
 - Garmin/Dynastream ANTUSB2 or ANTUSB-m USB stick
 - JetBlack Victory smart trainer
-- MyWhoosh remains the trainer controller (Wi-Fi); this bridge only listens to ANT+ FE-C
+- MyWhoosh remains the trainer controller over Wi-Fi
 - Home Assistant Mosquitto broker
 
-## Status
+## Current status
 
-Early development. The MQTT and Home Assistant Discovery path can be exercised now using **simulation mode** before an ANT+ USB stick is connected.
+Early development, but the full non-hardware path is implemented:
 
-The real ANT+ backend uses [OpenANT](https://github.com/Tigge/openant) and attaches passively to the first ANT+ Fitness Equipment device it sees (or an explicitly configured ANT device ID).
+- Home Assistant App packaging
+- raw USB and udev access
+- OpenANT 1.3.4
+- passive ANT+ FE-C listener
+- automatic Home Assistant Supervisor MQTT service discovery
+- MQTT Discovery
+- simulation mode
+- multi-architecture GHCR build workflow
 
-## Repository layout
+Simulation mode is enabled by default so the MQTT and Home Assistant side can be tested before the ANT+ dongle arrives.
 
-- `ant_trainer_bridge/` - Home Assistant App
-- `.github/workflows/build.yml` - multi-architecture GHCR build
-- `repository.yaml` - Home Assistant custom App repository metadata
+## Home Assistant entities
 
-## Home Assistant App
+The bridge creates one MQTT device named **ANT+ Trainer** with:
 
-The app has raw USB and udev access so OpenANT can claim a Dynastream/Garmin ANT stick.
-
-Default options are deliberately safe:
-
-- `simulation: true`
-- MQTT host defaults to `core-mosquitto`
-- MQTT credentials are supplied in the App configuration
-- real ANT+ mode is not enabled until `simulation` is turned off
-
-### Simulated telemetry
-
-Simulation publishes a repeating workout-like pattern so the full path can be tested:
-
-`bridge -> Mosquitto -> MQTT Discovery -> Home Assistant sensors`
-
-The Home Assistant MQTT device exposes:
-
-- Trainer Power (W)
-- Trainer Cadence (rpm)
-- Trainer Speed (km/h, when available)
+- Trainer Power
+- Trainer Cadence
+- Trainer Speed
 - Trainer Active
 - ANT Device ID
-- Bridge Status
+- Bridge Source
+
+## MQTT
+
+The App declares `mqtt:need` and asks Home Assistant Supervisor for the active MQTT service configuration. In the normal Home Assistant OS + Mosquitto setup there is no need to create or paste separate MQTT credentials.
+
+Manual host/username/password options remain available as a fallback.
+
+## ANT+ hardware
+
+OpenANT supports the expected Garmin/Dynastream USB devices:
+
+- ANTUSB2: `0fcf:1008`
+- ANTUSB-m: `0fcf:1009`
+
+The App enables:
+
+```yaml
+usb: true
+udev: true
+```
+
+so Home Assistant Supervisor maps raw USB access and the host udev database into the App container.
+
+## Simulation
+
+With `simulation: true`, the bridge emits a repeating series of power/cadence values. This lets us validate:
+
+`App -> Mosquitto -> MQTT Discovery -> Home Assistant entities -> training-zone automation`
+
+before the trainer receiver is connected.
 
 ## Container images
 
-GitHub Actions builds Linux/amd64 and Linux/arm64 images and publishes a multi-arch image:
+GitHub Actions builds both:
 
-`ghcr.io/deanpemberton/ant-trainer-bridge:<version>`
+- `linux/amd64`
+- `linux/arm64`
 
-The Home Assistant App points at the generic multi-arch image.
+and publishes a multi-architecture image to:
 
-> If this repository remains private, GHCR packages normally inherit private visibility. Home Assistant Supervisor cannot anonymously pull a private package. For direct App installation, make the GHCR package public or use a registry authentication approach. For initial development, the App can also be built locally from this repository.
+`ghcr.io/deanpemberton/ant-trainer-bridge`
 
-## Development roadmap
+Tags currently include:
 
-1. Prove MQTT Discovery with simulation mode.
-2. Plug Garmin ANT stick into Home Assistant Green and verify USB VID/PID (expected `0fcf:1008` or `0fcf:1009`).
-3. Disable simulation and discover the JetBlack Victory FE-C broadcast.
-4. Validate power/cadence against MyWhoosh.
-5. Add smoothed power and training-zone entities.
-6. Use trainer activity to drive Home Assistant Training Mode and office Hue zone colours.
+- `0.1.0`
+- `latest` on the default branch
+- Git tag names for `v*` releases
+
+The Home Assistant App references the generic multi-arch image.
+
+### Private repository note
+
+If this repository remains private, the GHCR package may also be private. Home Assistant Supervisor needs to be able to pull the image without interactive GitHub authentication, so the simplest deployment path is to make the **container package public** after the first successful build. The source repository can remain private.
+
+## Install in Home Assistant
+
+Once the GHCR package is pullable:
+
+1. Home Assistant -> Settings -> Apps -> App store.
+2. Add this repository:
+   `https://github.com/deanpemberton/ant-trainer-bridge`
+3. Install **ANT+ Trainer Bridge**.
+4. Leave `simulation: true` initially.
+5. Start the App and check its logs.
+6. Confirm the **ANT+ Trainer** MQTT device/entities appear.
+7. When the ANT stick arrives, plug it into the Green, confirm USB detection, then set `simulation: false`.
+
+## Roadmap
+
+1. Prove simulation and MQTT Discovery on the real Home Assistant Green.
+2. Verify Garmin ANT stick USB VID/PID.
+3. Discover the JetBlack Victory FE-C broadcast.
+4. Compare power/cadence against MyWhoosh.
+5. Add smoothed power and cycling-zone entities.
+6. Drive Training Mode automatically from trainer activity.
+7. Drive office Hue colour from sustained training zone.
 
 ## License
 
