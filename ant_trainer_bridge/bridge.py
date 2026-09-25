@@ -165,6 +165,7 @@ class Bridge:
             "power_10s": 0,
             "power_30s": 0,
             "cadence": 0,
+            "resistance": None,
             "speed": None,
             "heart_rate": None,
             "active": False,
@@ -227,6 +228,7 @@ class Bridge:
             "power_10s": {"component":"sensor","name":"Power 10s","device_class":"power","unit_of_measurement":"W","state_class":"measurement","value_template":"{{ value_json.power_10s }}"},
             "power_30s": {"component":"sensor","name":"Power 30s","device_class":"power","unit_of_measurement":"W","state_class":"measurement","value_template":"{{ value_json.power_30s }}"},
             "cadence": {"component":"sensor","name":"Trainer Cadence","unit_of_measurement":"rpm","state_class":"measurement","icon":"mdi:rotate-360","value_template":"{{ value_json.cadence }}"},
+            "resistance": {"component":"sensor","name":"Trainer Resistance","unit_of_measurement":"%","state_class":"measurement","icon":"mdi:gauge","value_template":"{{ value_json.resistance if value_json.resistance is not none else 0 }}"},
             "speed": {"component":"sensor","name":"Trainer Speed","unit_of_measurement":"km/h","state_class":"measurement","device_class":"speed","value_template":"{{ value_json.speed if value_json.speed is not none else 0 }}"},
             "heart_rate": {"component":"sensor","name":"Heart Rate","unit_of_measurement":"bpm","state_class":"measurement","icon":"mdi:heart-pulse","value_template":"{{ value_json.heart_rate if value_json.heart_rate is not none else 0 }}"},
             "active": {"component":"binary_sensor","name":"Trainer Active","device_class":"running","value_template":"{{ 'ON' if value_json.active else 'OFF' }}","payload_on":"ON","payload_off":"OFF"},
@@ -338,7 +340,7 @@ class Bridge:
         while not self.stop.wait(1):
             self.publish_state()
 
-    def update(self, power=None, cadence=None, speed=None, heart_rate=None,
+    def update(self, power=None, cadence=None, resistance=None, speed=None, heart_rate=None,
                ant_device_id=None, hr_device_id=None, trainer_packet=False,
                hr_packet=False):
         with self.lock:
@@ -370,6 +372,14 @@ class Bridge:
                     cadence = int(round(float(cadence)))
                     if 0 <= cadence < 255:
                         self.latest["cadence"] = cadence
+                except (TypeError, ValueError):
+                    pass
+
+            if resistance is not None:
+                try:
+                    resistance = float(resistance)
+                    if 0 <= resistance <= 100:
+                        self.latest["resistance"] = round(resistance, 1)
                 except (TypeError, ValueError):
                     pass
 
@@ -465,6 +475,7 @@ class Bridge:
                 self.update(
                     power=fields.get("instantaneous_power"),
                     cadence=fields.get("cadence"),
+                    resistance=fields.get("resistance", fields.get("resistence")),
                     speed=fields.get("speed"),
                     ant_device_id=trainer.device_id,
                     trainer_packet=True,
