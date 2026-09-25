@@ -55,22 +55,19 @@ def supervisor_mqtt_service():
 
 def resolve_mqtt(options):
     service = supervisor_mqtt_service()
-    if service:
-        LOG.info("Using MQTT service supplied by Home Assistant Supervisor")
-        return {
-            "host": options["mqtt_host"] or service["host"],
-            "port": int(service.get("port") or options["mqtt_port"]),
-            "username": options["mqtt_username"] or service.get("username", ""),
-            "password": options["mqtt_password"] or service.get("password", ""),
-            "ssl": bool(service.get("ssl", False)),
-        }
-    LOG.warning("Supervisor MQTT service unavailable; using configured MQTT settings")
+    if not service:
+        raise RuntimeError(
+            "Home Assistant Supervisor MQTT service is required; "
+            "manual broker credentials are intentionally unsupported"
+        )
+
+    LOG.info("Using MQTT service supplied by Home Assistant Supervisor")
     return {
-        "host": options["mqtt_host"] or "core-mosquitto",
-        "port": int(options["mqtt_port"]),
-        "username": options["mqtt_username"],
-        "password": options["mqtt_password"],
-        "ssl": False,
+        "host": service["host"],
+        "port": int(service["port"]),
+        "username": service.get("username", ""),
+        "password": service.get("password", ""),
+        "ssl": bool(service.get("ssl", False)),
     }
 
 
@@ -152,7 +149,7 @@ class Bridge:
             "name": "ANT+ Training Telemetry",
             "manufacturer": "ANT+",
             "model": "FE-C + HR Bridge",
-            "sw_version": "0.3.0",
+            "sw_version": "0.3.1",
         }
         availability = [{"topic": f"{self.base}/availability"}]
         entities = {
