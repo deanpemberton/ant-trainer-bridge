@@ -5,6 +5,8 @@ IMAGE="ant-trainer-bridge:permission-test"
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
+mkdir -p "$TMPDIR/fakebin"
+
 cat > "$TMPDIR/options.json" <<'JSON'
 {
   "simulation": true,
@@ -17,34 +19,45 @@ cat > "$TMPDIR/options.json" <<'JSON'
 }
 JSON
 
-# Model Home Assistant Supervisor's root-owned app data.
+# Model Home Assistant Supervisor: root-owned, owner-readable only.
 chmod 600 "$TMPDIR/options.json"
+
+# Replace python3 only for this integration test so we can observe the
+# effective UID after the bootstrap has copied options and dropped privilege,
+# without requiring a real Supervisor MQTT endpoint.
+cat > "$TMPDIR/fakebin/python3" <<'SH'
+#!/bin/sh
+set -eu
+echo "EFFECTIVE_UID=$(id -u)"
+echo "ANT_OPTIONS_PATH=$ANT_OPTIONS_PATH"
+echo "OPTIONS_BEGIN"
+cat "$ANT_OPTIONS_PATH"
+echo "OPTIONS_END"
+SH
+chmod 755 "$TMPDIR/fakebin/python3"
 
 docker build -t "$IMAGE" ./ant_trainer_bridge >/dev/null
 
-set +e
-OUTPUT="$(docker run --rm   -e SUPERVISOR_TOKEN=dummy   -v "$TMPDIR/options.json:/data/options.json:ro"   "$IMAGE" 2>&1)"
-STATUS=$?
-set -e
+OUTPUT="$(docker run --rm   -e PATH="/testbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"   -v "$TMPDIR/options.json:/data/options.json:ro"   -v "$TMPDIR/fakebin:/testbin:ro"   "$IMAGE" 2>&1)"
 
 echo "$OUTPUT"
 
-# The container must get past configuration loading. The dummy Supervisor
-# endpoint can fail afterwards; a PermissionError reading options is the
-# regression this test protects against.
 if echo "$OUTPUT" | grep -q "PermissionError.*options.json"; then
-  echo "FAIL: non-root bridge cannot read Supervisor-managed options.json" >&2
+  echo "FAIL: startup could not read Supervisor-managed options.json" >&2
   exit 1
 fi
 
-if ! echo "$OUTPUT" | grep -Eq "Supervisor MQTT service|Home Assistant Supervisor MQTT service is required"; then
-  echo "FAIL: bridge did not get past options loading" >&2
+if ! echo "$OUTPUT" | grep -q "EFFECTIVE_UID=10001"; then
+  echo "FAIL: long-running bridge would not execute as UID 10001" >&2
   exit 1
 fi
 
-# Ensure the production process remains non-root after bootstrap.
-USER_ID="$(docker run --rm "$IMAGE" id -u)"
-if [ "$USER_ID" = "0" ]; then
-  echo "FAIL: final container runtime user is root" >&2
+if ! echo "$OUTPUT" | grep -q "ANT_OPTIONS_PATH=/tmp/ant-trainer-options.json"; then
+  echo "FAIL: bridge did not receive the bootstrapped options path" >&2
+  exit 1
+fi
+
+if ! echo "$OUTPUT" | grep -q '"mqtt_base_topic": "test/trainer"'; then
+  echo "FAIL: bootstrapped options content was not preserved" >&2
   exit 1
 fi
