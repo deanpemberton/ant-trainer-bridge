@@ -389,3 +389,25 @@ def test_run_ant_cleanup_uses_safe_stop_helper(bridge_module):
 
     assert "stop_ant_node(node)" in source
     assert "            node.stop()" not in source
+
+
+def test_packet_age_is_zero_while_signal_is_fresh_and_coarse_when_stale(monkeypatch, bridge_module):
+    clock = {"now": 100.0}
+    monkeypatch.setattr(bridge_module.time, "monotonic", lambda: clock["now"])
+    bridge = make_bridge(bridge_module, packet_stale_seconds=5)
+
+    bridge.update(power=0, heart_rate=120, trainer_packet=True, hr_packet=True)
+
+    clock["now"] = 102.7
+    bridge.publish_state()
+    assert bridge.latest["trainer_signal_ok"] is True
+    assert bridge.latest["hr_signal_ok"] is True
+    assert bridge.latest["trainer_packet_age"] == 0
+    assert bridge.latest["hr_packet_age"] == 0
+
+    clock["now"] = 106.9
+    bridge.publish_state()
+    assert bridge.latest["trainer_signal_ok"] is False
+    assert bridge.latest["hr_signal_ok"] is False
+    assert bridge.latest["trainer_packet_age"] == 6
+    assert bridge.latest["hr_packet_age"] == 6
