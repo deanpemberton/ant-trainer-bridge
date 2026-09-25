@@ -218,7 +218,7 @@ class Bridge:
             "name": "ANT+ Training Telemetry",
             "manufacturer": "ANT+",
             "model": "FE-C + HR Bridge",
-            "sw_version": "0.3.5",
+            "sw_version": "0.3.6",
         }
         availability = [{"topic": f"{self.base}/availability"}]
         entities = {
@@ -488,7 +488,7 @@ class Bridge:
                     device.close_channel()
                 except Exception:
                     LOG.exception("Error closing ANT+ channel")
-            node.stop()
+            stop_ant_node(node)
 
     def close(self):
         self.stop.set()
