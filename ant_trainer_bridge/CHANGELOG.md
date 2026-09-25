@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.4
+- Fix ANTUSB-m access on Home Assistant Green by claiming the USB device before permanently dropping privileges.
+- Keep simulation mode non-root from process start.
+- Add TDD regression coverage for the ANT USB privilege boundary and claim/drop ordering.
+
 ## 0.3.3
 - Make simulation traverse Z1-Z6 slowly, then recover back down, for real-time cockpit testing.
 - Add a regression test requiring full-zone coverage and minimum dwell time per simulated zone.
