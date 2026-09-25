@@ -12,7 +12,7 @@ from pathlib import Path
 
 import paho.mqtt.client as mqtt
 
-OPTIONS_PATH = Path("/data/options.json")
+OPTIONS_PATH = Path(os.environ.get("ANT_OPTIONS_PATH", "/data/options.json"))
 LOG = logging.getLogger("ant-trainer-bridge")
 
 
@@ -153,7 +153,7 @@ class Bridge:
             "name": "ANT+ Training Telemetry",
             "manufacturer": "ANT+",
             "model": "FE-C + HR Bridge",
-            "sw_version": "0.3.1",
+            "sw_version": "0.3.2",
         }
         availability = [{"topic": f"{self.base}/availability"}]
         entities = {
