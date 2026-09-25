@@ -324,3 +324,23 @@ def test_drop_privileges_is_noop_when_already_unprivileged(monkeypatch, bridge_m
     bridge_module.drop_privileges()
 
     assert calls == []
+
+
+def test_open_ant_node_claims_before_privilege_drop(monkeypatch, bridge_module):
+    events = []
+    sentinel = object()
+
+    def node_factory():
+        events.append("node_opened")
+        return sentinel
+
+    monkeypatch.setattr(
+        bridge_module,
+        "drop_privileges",
+        lambda: events.append("privileges_dropped"),
+    )
+
+    result = bridge_module.open_ant_node(node_factory)
+
+    assert result is sentinel
+    assert events == ["node_opened", "privileges_dropped"]
