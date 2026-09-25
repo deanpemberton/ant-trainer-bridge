@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.5
+- Fix clean ANTUSB-m shutdown after privilege drop by releasing libusb resources without attempting privileged kernel-driver reattach.
+- Add TDD regression coverage for shutdown cleanup.
+
 ## 0.3.4
 - Fix ANTUSB-m access on Home Assistant Green by claiming the USB device before permanently dropping privileges.
 - Keep simulation mode non-root from process start.
