@@ -218,7 +218,7 @@ class Bridge:
             "name": "ANT+ Training Telemetry",
             "manufacturer": "ANT+",
             "model": "FE-C + HR Bridge",
-            "sw_version": "0.3.6",
+            "sw_version": "0.3.7",
         }
         availability = [{"topic": f"{self.base}/availability"}]
         entities = {
@@ -298,21 +298,33 @@ class Bridge:
         self.latest["session_max_hr"] = self.session_hr_max
 
         stale = float(self.o["packet_stale_seconds"])
-        self.latest["trainer_packet_age"] = (
-            round(now - self.last_trainer_packet, 1)
+
+        trainer_age = (
+            now - self.last_trainer_packet
             if self.last_trainer_packet is not None else None
         )
-        self.latest["hr_packet_age"] = (
-            round(now - self.last_hr_packet, 1)
+        hr_age = (
+            now - self.last_hr_packet
             if self.last_hr_packet is not None else None
         )
+
         self.latest["trainer_signal_ok"] = (
-            self.last_trainer_packet is not None
-            and now - self.last_trainer_packet <= stale
+            trainer_age is not None and trainer_age <= stale
         )
         self.latest["hr_signal_ok"] = (
-            self.last_hr_packet is not None
-            and now - self.last_hr_packet <= stale
+            hr_age is not None and hr_age <= stale
+        )
+
+        # Avoid recorder churn while signals are healthy. Packet age only
+        # becomes interesting once a stream is stale, at which point publish
+        # whole seconds rather than sub-second jitter.
+        self.latest["trainer_packet_age"] = (
+            0 if self.latest["trainer_signal_ok"]
+            else int(trainer_age) if trainer_age is not None else None
+        )
+        self.latest["hr_packet_age"] = (
+            0 if self.latest["hr_signal_ok"]
+            else int(hr_age) if hr_age is not None else None
         )
 
     def publish_state(self):
