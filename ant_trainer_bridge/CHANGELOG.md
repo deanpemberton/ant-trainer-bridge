@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+- Fix Home Assistant startup when `/data/options.json` is root-only.
+- Entrypoint now copies options into a private file owned by the unprivileged app user, then drops privileges before starting Python.
+
 ## 0.3.1
 - Require Home Assistant Supervisor-provided MQTT and remove manual broker credential fallback.
 - Run the long-lived bridge as unprivileged UID/GID 10001.
