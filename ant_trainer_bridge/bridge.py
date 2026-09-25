@@ -116,14 +116,14 @@ class Bridge:
             "name": "ANT+ Training Telemetry",
             "manufacturer": "ANT+",
             "model": "FE-C + HR Bridge",
-            "sw_version": "0.2.0",
+            "sw_version": "0.2.1",
         }
         availability = [{"topic": f"{self.base}/availability"}]
         entities = {
             "power": {"component":"sensor","name":"Trainer Power","device_class":"power","unit_of_measurement":"W","state_class":"measurement","value_template":"{{ value_json.power }}"},
             "cadence": {"component":"sensor","name":"Trainer Cadence","unit_of_measurement":"rpm","state_class":"measurement","icon":"mdi:rotate-360","value_template":"{{ value_json.cadence }}"},
-            "speed": {"component":"sensor","name":"Trainer Speed","unit_of_measurement":"km/h","state_class":"measurement","device_class":"speed","value_template":"{{ value_json.speed if value_json.speed is not none else 'unknown' }}"},
-            "heart_rate": {"component":"sensor","name":"Heart Rate","unit_of_measurement":"bpm","state_class":"measurement","device_class":"heart_rate","value_template":"{{ value_json.heart_rate if value_json.heart_rate is not none else 'unknown' }}"},
+            "speed": {"component":"sensor","name":"Trainer Speed","unit_of_measurement":"km/h","state_class":"measurement","device_class":"speed","value_template":"{{ value_json.speed if value_json.speed is not none else 0 }}"},
+            "heart_rate": {"component":"sensor","name":"Heart Rate","unit_of_measurement":"bpm","state_class":"measurement","icon":"mdi:heart-pulse","value_template":"{{ value_json.heart_rate if value_json.heart_rate is not none else 0 }}"},
             "active": {"component":"binary_sensor","name":"Trainer Active","device_class":"running","value_template":"{{ 'ON' if value_json.active else 'OFF' }}","payload_on":"ON","payload_off":"OFF"},
             "ant_device_id": {"component":"sensor","name":"Trainer ANT Device ID","icon":"mdi:identifier","value_template":"{{ value_json.ant_device_id if value_json.ant_device_id is not none else 'unknown' }}","entity_category":"diagnostic"},
             "hr_device_id": {"component":"sensor","name":"HR ANT Device ID","icon":"mdi:identifier","value_template":"{{ value_json.hr_device_id if value_json.hr_device_id is not none else 'unknown' }}","entity_category":"diagnostic"},
