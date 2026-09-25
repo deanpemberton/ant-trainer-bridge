@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import json
 import logging
+import os
 import signal
 import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 import paho.mqtt.client as mqtt
@@ -16,7 +18,7 @@ LOG = logging.getLogger("ant-trainer-bridge")
 def load_options():
     defaults = {
         "simulation": True,
-        "mqtt_host": "core-mosquitto",
+        "mqtt_host": "",
         "mqtt_port": 1883,
         "mqtt_username": "",
         "mqtt_password": "",
@@ -28,6 +30,46 @@ def load_options():
     if OPTIONS_PATH.exists():
         defaults.update(json.loads(OPTIONS_PATH.read_text()))
     return defaults
+
+
+def supervisor_mqtt_service():
+    token = os.environ.get("SUPERVISOR_TOKEN")
+    if not token:
+        return None
+    request = urllib.request.Request(
+        "http://supervisor/services/mqtt",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            payload = json.load(response)
+        if payload.get("result") == "ok":
+            return payload.get("data")
+    except Exception as exc:
+        LOG.warning("Unable to read Supervisor MQTT service: %s", exc)
+    return None
+
+
+def resolve_mqtt(options):
+    service = supervisor_mqtt_service()
+    if service:
+        LOG.info("Using MQTT service supplied by Home Assistant Supervisor")
+        return {
+            "host": options["mqtt_host"] or service["host"],
+            "port": int(service.get("port") or options["mqtt_port"]),
+            "username": options["mqtt_username"] or service.get("username", ""),
+            "password": options["mqtt_password"] or service.get("password", ""),
+            "ssl": bool(service.get("ssl", False)),
+        }
+
+    LOG.warning("Supervisor MQTT service unavailable; using configured MQTT settings")
+    return {
+        "host": options["mqtt_host"] or "core-mosquitto",
+        "port": int(options["mqtt_port"]),
+        "username": options["mqtt_username"],
+        "password": options["mqtt_password"],
+        "ssl": False,
+    }
 
 
 class Bridge:
@@ -45,20 +87,31 @@ class Bridge:
             "source": "simulation" if self.o["simulation"] else "ant",
         }
 
+        self.mqtt_config = resolve_mqtt(options)
         self.mqtt = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
             client_id="ant-trainer-bridge",
         )
-        if self.o["mqtt_username"]:
+        if self.mqtt_config["username"]:
             self.mqtt.username_pw_set(
-                self.o["mqtt_username"],
-                self.o["mqtt_password"],
+                self.mqtt_config["username"],
+                self.mqtt_config["password"],
             )
+        if self.mqtt_config["ssl"]:
+            self.mqtt.tls_set()
         self.mqtt.will_set(f"{self.base}/availability", "offline", retain=True)
 
     def connect(self):
-        LOG.info("Connecting to MQTT at %s:%s", self.o["mqtt_host"], self.o["mqtt_port"])
-        self.mqtt.connect(self.o["mqtt_host"], int(self.o["mqtt_port"]), 60)
+        LOG.info(
+            "Connecting to MQTT at %s:%s",
+            self.mqtt_config["host"],
+            self.mqtt_config["port"],
+        )
+        self.mqtt.connect(
+            self.mqtt_config["host"],
+            self.mqtt_config["port"],
+            60,
+        )
         self.mqtt.loop_start()
         self.mqtt.publish(f"{self.base}/availability", "online", retain=True)
         self.publish_discovery()
@@ -121,23 +174,27 @@ class Bridge:
                 "entity_category": "diagnostic",
             },
         }
-        for object_id, cfg in entities.items():
-            component = cfg.pop("component")
+        for object_id, config in entities.items():
+            config = dict(config)
+            component = config.pop("component")
             payload = {
-                **cfg,
+                **config,
                 "unique_id": f"ant_trainer_bridge_{object_id}",
                 "state_topic": f"{self.base}/state",
                 "availability": availability,
                 "device": device,
             }
-            topic = f"homeassistant/{component}/ant_trainer_bridge/{object_id}/config"
+            topic = (
+                f"homeassistant/{component}/ant_trainer_bridge/"
+                f"{object_id}/config"
+            )
             self.mqtt.publish(topic, json.dumps(payload), retain=True)
 
     def publish_state(self):
         now = time.monotonic()
-        self.latest["active"] = (now - self.last_active) <= int(
-            self.o["active_timeout_seconds"]
-        )
+        self.latest["active"] = (
+            now - self.last_active
+        ) <= int(self.o["active_timeout_seconds"])
         self.mqtt.publish(
             f"{self.base}/state",
             json.dumps(self.latest, separators=(",", ":")),
@@ -153,6 +210,7 @@ class Bridge:
                     self.last_active = time.monotonic()
             except (TypeError, ValueError):
                 pass
+
         if cadence is not None:
             try:
                 cadence = int(round(float(cadence)))
@@ -160,25 +218,35 @@ class Bridge:
                     self.latest["cadence"] = cadence
             except (TypeError, ValueError):
                 pass
+
         if speed is not None:
             try:
                 speed = float(speed)
                 if 0 <= speed < 65.535:
-                    # ANT+ Fitness Equipment speed is decoded by OpenANT in m/s.
+                    # OpenANT decodes FE-C speed in metres per second.
                     self.latest["speed"] = round(speed * 3.6, 1)
             except (TypeError, ValueError):
                 pass
+
         if ant_device_id is not None:
             self.latest["ant_device_id"] = ant_device_id
+
         self.publish_state()
 
     def run_simulation(self):
         LOG.info("Simulation mode enabled")
         steps = [
-            (0, 0), (85, 78), (125, 84), (165, 88),
-            (205, 91), (245, 94), (310, 98), (155, 86)
+            (0, 0),
+            (85, 78),
+            (125, 84),
+            (165, 88),
+            (205, 91),
+            (245, 94),
+            (310, 98),
+            (155, 86),
         ]
         self.latest["ant_device_id"] = 99999
+
         while not self.stop.is_set():
             for power, cadence in steps:
                 if self.stop.is_set():
@@ -192,13 +260,22 @@ class Bridge:
         from openant.devices import ANTPLUS_NETWORK_KEY
         from openant.devices.fitness_equipment import FitnessEquipment
 
-        LOG.info("Starting passive ANT+ FE-C listener; requested device id=%s", self.o["ant_device_id"])
+        LOG.info(
+            "Starting passive ANT+ FE-C listener; requested device id=%s",
+            self.o["ant_device_id"],
+        )
         node = Node()
         node.set_network_key(0x00, ANTPLUS_NETWORK_KEY)
-        device = FitnessEquipment(node, device_id=int(self.o["ant_device_id"]))
+        device = FitnessEquipment(
+            node,
+            device_id=int(self.o["ant_device_id"]),
+        )
 
         def on_found():
-            LOG.info("ANT+ fitness equipment found: device_id=%s", device.device_id)
+            LOG.info(
+                "ANT+ fitness equipment found: device_id=%s",
+                device.device_id,
+            )
             self.latest["ant_device_id"] = device.device_id
             self.publish_state()
 
@@ -212,7 +289,11 @@ class Bridge:
                     ant_device_id=device.device_id,
                 )
             except Exception:
-                LOG.exception("Failed to decode FE-C data page %s (%s)", page, page_name)
+                LOG.exception(
+                    "Failed to decode FE-C data page %s (%s)",
+                    page,
+                    page_name,
+                )
 
         device.on_found = on_found
         device.on_device_data = on_data
@@ -228,7 +309,11 @@ class Bridge:
     def close(self):
         self.stop.set()
         try:
-            self.mqtt.publish(f"{self.base}/availability", "offline", retain=True)
+            self.mqtt.publish(
+                f"{self.base}/availability",
+                "offline",
+                retain=True,
+            )
             self.mqtt.disconnect()
             self.mqtt.loop_stop()
         except Exception:
