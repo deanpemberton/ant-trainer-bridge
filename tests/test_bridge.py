@@ -296,3 +296,31 @@ def test_simulation_profile_covers_all_power_zones_slowly(bridge_module):
     peak_index = powers.index(max(powers))
     assert powers[:peak_index + 1] == sorted(powers[:peak_index + 1])
     assert powers[peak_index:] == sorted(powers[peak_index:], reverse=True)
+
+
+def test_drop_privileges_from_root(monkeypatch, bridge_module):
+    calls = []
+    monkeypatch.setattr(bridge_module.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(bridge_module.os, "setgroups", lambda groups: calls.append(("groups", groups)))
+    monkeypatch.setattr(bridge_module.os, "setgid", lambda gid: calls.append(("gid", gid)))
+    monkeypatch.setattr(bridge_module.os, "setuid", lambda uid: calls.append(("uid", uid)))
+
+    bridge_module.drop_privileges()
+
+    assert calls == [
+        ("groups", []),
+        ("gid", 10001),
+        ("uid", 10001),
+    ]
+
+
+def test_drop_privileges_is_noop_when_already_unprivileged(monkeypatch, bridge_module):
+    calls = []
+    monkeypatch.setattr(bridge_module.os, "geteuid", lambda: 10001)
+    monkeypatch.setattr(bridge_module.os, "setgroups", lambda groups: calls.append(("groups", groups)))
+    monkeypatch.setattr(bridge_module.os, "setgid", lambda gid: calls.append(("gid", gid)))
+    monkeypatch.setattr(bridge_module.os, "setuid", lambda uid: calls.append(("uid", uid)))
+
+    bridge_module.drop_privileges()
+
+    assert calls == []
