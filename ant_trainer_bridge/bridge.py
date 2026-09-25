@@ -14,6 +14,26 @@ import paho.mqtt.client as mqtt
 
 OPTIONS_PATH = Path(os.environ.get("ANT_OPTIONS_PATH", "/data/options.json"))
 LOG = logging.getLogger("ant-trainer-bridge")
+APP_UID = 10001
+APP_GID = 10001
+
+
+def drop_privileges():
+    """Permanently drop root after the ANT USB handle has been claimed."""
+    if os.geteuid() != 0:
+        return
+    os.setgroups([])
+    os.setgid(APP_GID)
+    os.setuid(APP_UID)
+    LOG.info("Dropped privileges to uid=%s gid=%s", APP_UID, APP_GID)
+
+
+def open_ant_node(node_factory):
+    """Open/claim the ANT USB device with privilege, then immediately drop it."""
+    node = node_factory()
+    drop_privileges()
+    return node
+
 
 
 # Deliberately slow simulation profile for dashboard and automation testing.
@@ -172,7 +192,7 @@ class Bridge:
             "name": "ANT+ Training Telemetry",
             "manufacturer": "ANT+",
             "model": "FE-C + HR Bridge",
-            "sw_version": "0.3.3",
+            "sw_version": "0.3.4",
         }
         availability = [{"topic": f"{self.base}/availability"}]
         entities = {
@@ -383,10 +403,19 @@ class Bridge:
             self.o["ant_device_id"],
             self.o["hr_device_id"],
         )
-        node = Node()
+        node = open_ant_node(Node)
         node.set_network_key(0x00, ANTPLUS_NETWORK_KEY)
         trainer = FitnessEquipment(node, device_id=int(self.o["ant_device_id"]))
         hr = HeartRate(node, device_id=int(self.o["hr_device_id"]))
+
+        # Root was needed only to claim/detach the USB device. From this point
+        # onward the process is permanently unprivileged.
+        self.connect()
+        threading.Thread(
+            target=self.status_loop,
+            name="status-publisher",
+            daemon=True,
+        ).start()
 
         def on_trainer_found():
             LOG.info("ANT+ fitness equipment found: device_id=%s", trainer.device_id)
@@ -462,13 +491,13 @@ def main():
     signal.signal(signal.SIGINT, shutdown)
 
     try:
-        bridge.connect()
-        threading.Thread(
-            target=bridge.status_loop,
-            name="status-publisher",
-            daemon=True,
-        ).start()
         if options["simulation"]:
+            bridge.connect()
+            threading.Thread(
+                target=bridge.status_loop,
+                name="status-publisher",
+                daemon=True,
+            ).start()
             bridge.run_simulation()
         else:
             bridge.run_ant()
