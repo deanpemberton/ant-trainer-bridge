@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.7
+- Keep packet-age diagnostics at 0 while ANT streams are healthy to avoid Home Assistant recorder churn.
+- Report packet age in whole seconds only after a stream becomes stale.
+- Add regression coverage for healthy/stale packet-age behavior.
+
 ## 0.3.6
 - Route the actual run_ant teardown path through the safe USB cleanup helper.
 - Add regression coverage that checks the production cleanup path, not just the helper in isolation.
