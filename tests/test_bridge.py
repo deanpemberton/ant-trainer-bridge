@@ -380,3 +380,12 @@ def test_stop_ant_node_disposes_usb_without_kernel_reattach(monkeypatch, bridge_
     bridge_module.stop_ant_node(node)
 
     assert events == [("dispose", dev), "node_stop"]
+
+
+def test_run_ant_cleanup_uses_safe_stop_helper(bridge_module):
+    import inspect
+
+    source = inspect.getsource(bridge_module.Bridge.run_ant)
+
+    assert "stop_ant_node(node)" in source
+    assert "            node.stop()" not in source
