@@ -1,2 +1,2 @@
-openant @ git+https://github.com/Tigge/openant.git@52c545ced290793e506671873bb707fd398a20c3
+openant==1.3.4
 paho-mqtt>=2.1,<3
