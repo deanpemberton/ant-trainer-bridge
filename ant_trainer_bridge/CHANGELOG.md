@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.6
+- Route the actual run_ant teardown path through the safe USB cleanup helper.
+- Add regression coverage that checks the production cleanup path, not just the helper in isolation.
+
 ## 0.3.5
 - Fix clean ANTUSB-m shutdown after privilege drop by releasing libusb resources without attempting privileged kernel-driver reattach.
 - Add TDD regression coverage for shutdown cleanup.
