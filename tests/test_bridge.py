@@ -4,10 +4,6 @@ import json
 def make_bridge(module, **overrides):
     options = {
         "simulation": True,
-        "mqtt_host": "",
-        "mqtt_port": 1883,
-        "mqtt_username": "",
-        "mqtt_password": "",
         "mqtt_base_topic": "home/trainer",
         "ant_device_id": 0,
         "hr_device_id": 0,
@@ -28,7 +24,6 @@ def test_load_options_merges_file(tmp_path, monkeypatch, bridge_module):
 
     assert result["simulation"] is False
     assert result["ant_device_id"] == 123
-    assert result["mqtt_port"] == 1883
 
 
 def test_resolve_mqtt_prefers_supervisor(monkeypatch, bridge_module):
@@ -44,14 +39,7 @@ def test_resolve_mqtt_prefers_supervisor(monkeypatch, bridge_module):
         },
     )
 
-    result = bridge_module.resolve_mqtt(
-        {
-            "mqtt_host": "",
-            "mqtt_port": 1883,
-            "mqtt_username": "",
-            "mqtt_password": "",
-        }
-    )
+    result = bridge_module.resolve_mqtt({})
 
     assert result == {
         "host": "broker",
@@ -62,23 +50,15 @@ def test_resolve_mqtt_prefers_supervisor(monkeypatch, bridge_module):
     }
 
 
-def test_resolve_mqtt_falls_back_to_config(monkeypatch, bridge_module):
+def test_resolve_mqtt_requires_supervisor(monkeypatch, bridge_module):
     monkeypatch.setattr(bridge_module, "supervisor_mqtt_service", lambda: None)
 
-    result = bridge_module.resolve_mqtt(
-        {
-            "mqtt_host": "manual-broker",
-            "mqtt_port": 1885,
-            "mqtt_username": "u",
-            "mqtt_password": "p",
-        }
-    )
-
-    assert result["host"] == "manual-broker"
-    assert result["port"] == 1885
-    assert result["username"] == "u"
-    assert result["password"] == "p"
-    assert result["ssl"] is False
+    try:
+        bridge_module.resolve_mqtt({})
+    except RuntimeError as exc:
+        assert "Supervisor MQTT service is required" in str(exc)
+    else:
+        raise AssertionError("resolve_mqtt should fail closed without Supervisor MQTT")
 
 
 def test_discovery_contains_smoothing_session_and_health_entities(bridge_module):
