@@ -49,8 +49,8 @@ def bridge_module(monkeypatch):
     monkeypatch.setattr(module.mqtt, "Client", FakeMqttClient)
     monkeypatch.setattr(
         module,
-        "resolve_mqtt",
-        lambda options: {
+        "supervisor_mqtt_service",
+        lambda: {
             "host": "mqtt.test",
             "port": 1883,
             "username": "user",
