@@ -9,6 +9,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY bridge.py /app/bridge.py
+RUN python -m py_compile /app/bridge.py
+
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
 
