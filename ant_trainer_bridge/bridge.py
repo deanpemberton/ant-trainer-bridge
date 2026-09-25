@@ -6,7 +6,7 @@ import signal
 import sys
 import threading
 import time
-import urllib.request
+import http.client
 from collections import deque
 from pathlib import Path
 
@@ -35,17 +35,25 @@ def supervisor_mqtt_service():
     token = os.environ.get("SUPERVISOR_TOKEN")
     if not token:
         return None
-    request = urllib.request.Request(
-        "http://supervisor/services/mqtt",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+
+    connection = http.client.HTTPConnection("supervisor", timeout=5)
     try:
-        with urllib.request.urlopen(request, timeout=5) as response:
-            payload = json.load(response)
+        connection.request(
+            "GET",
+            "/services/mqtt",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        response = connection.getresponse()
+        if response.status != 200:
+            LOG.warning("Supervisor MQTT service returned HTTP %s", response.status)
+            return None
+        payload = json.load(response)
         if payload.get("result") == "ok":
             return payload.get("data")
-    except Exception as exc:
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
         LOG.warning("Unable to read Supervisor MQTT service: %s", exc)
+    finally:
+        connection.close()
     return None
 
 
