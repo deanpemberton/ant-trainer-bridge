@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.1
+- Fix Home Assistant MQTT discovery schema for heart-rate and speed sensors.
+
 ## 0.2.0
 - Add simultaneous ANT+ heart-rate reception for Garmin HR straps.
 - Publish heart rate and HR ANT device ID through MQTT Discovery.
