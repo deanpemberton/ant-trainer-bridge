@@ -1,4 +1,4 @@
-import importlib.util
+import importlib
 import sys
 from pathlib import Path
 
@@ -6,15 +6,13 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BRIDGE_PATH = ROOT / "ant_trainer_bridge" / "bridge.py"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 @pytest.fixture
 def bridge_module(monkeypatch):
-    spec = importlib.util.spec_from_file_location("bridge_under_test", BRIDGE_PATH)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["bridge_under_test"] = module
-    spec.loader.exec_module(module)
+    module = importlib.import_module("ant_trainer_bridge.bridge")
 
     class FakeMqttClient:
         def __init__(self, *args, **kwargs):
