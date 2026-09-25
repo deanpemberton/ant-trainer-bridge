@@ -2,7 +2,7 @@
 FROM python:3.12-slim-trixie@sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libusb-1.0-0 ca-certificates \
+ && apt-get install -y --no-install-recommends libusb-1.0-0 ca-certificates gosu \
  && apt-get dist-clean \
  && rm -rf /var/lib/apt/lists/* \
  && groupadd --gid 10001 antbridge \
@@ -19,8 +19,7 @@ COPY run.sh /run.sh
 RUN chmod 0555 /run.sh \
  && chown -R antbridge:antbridge /app
 
-# OpenANT's recommended udev rules set Garmin/Dynastream ANT USB devices to
-# MODE=0666, so the long-running bridge does not need root.
-USER 10001:10001
-
+# The entrypoint starts as root only long enough to copy Home Assistant's
+# root-owned /data/options.json into a private file owned by antbridge.
+# It then execs the long-running Python process as UID/GID 10001.
 CMD ["/run.sh"]
