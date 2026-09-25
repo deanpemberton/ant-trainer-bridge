@@ -13,7 +13,7 @@ Initial target hardware:
 
 ## Current status
 
-Version **0.3.1** includes:
+Version **0.3.8** includes:
 
 - Home Assistant App packaging
 - raw USB/udev access
@@ -33,7 +33,7 @@ Version **0.3.1** includes:
 - pinned multi-arch Python base-image digest
 - SBOM and build provenance generation
 
-Simulation mode is enabled by default so the MQTT/Home Assistant path can be tested before ANT+ hardware is connected.
+The deployed bridge is currently **0.3.8** and is running in simulation mode for safe testing. Real ANT+ FE-C telemetry from the JetBlack Victory has been validated using locked trainer ANT device ID **15550**, including power, cadence, and the FE-C General Settings resistance field. The bridge normalizes OpenANT's `Resistence` field to `resistance` before publishing it through MQTT Discovery.
 
 ## Home Assistant entities
 
@@ -42,6 +42,7 @@ The MQTT device **ANT+ Training Telemetry** exposes:
 - Trainer Power
 - Power 3s / Power 10s / Power 30s
 - Trainer Cadence
+- Trainer Resistance (%)
 - Trainer Speed
 - Trainer Active
 - Heart Rate
@@ -106,7 +107,7 @@ Security scanning runs on pushes, pull requests and weekly:
 
 ## Simulation
 
-With `simulation: true`, the bridge emits a one-second power/cadence/heart-rate stream so the full path can be exercised:
+With `simulation: true`, the bridge emits a one-second power/cadence/heart-rate/resistance stream so the full path can be exercised:
 
 `App -> Supervisor MQTT -> MQTT Discovery -> Home Assistant entities -> zone/dashboard logic`
 
@@ -125,7 +126,7 @@ and publishes:
 
 including:
 
-- `0.3.1`
+- `0.3.8`
 - `latest`
 - `sha-<full-git-sha>`
 - release tag names for `v*`
@@ -147,14 +148,14 @@ A sections-dashboard template lives at:
 
 `dashboards/training-cockpit.yaml`
 
-It includes live power, HR, cadence, smoothed power, session metrics, ANT health, Training Mode and the opt-in Zone Lighting switch.
+It includes live power, HR, cadence, trainer resistance, smoothed power, session metrics, ANT health, Training Mode and the opt-in Zone Lighting switch. The live dashboard uses the Intervals.icu-aligned zone colour mapping.
 
 ## Roadmap
 
-1. Validate Garmin ANT stick permissions as non-root on Home Assistant Green.
-2. Discover and lock the JetBlack Victory and HRM 600 ANT device IDs.
-3. Compare power/cadence with MyWhoosh and HR with Garmin.
-4. Validate smoothing and packet-health behavior on real ANT traffic.
+1. Validate HRM 600 ANT device ID and lock it once confirmed.
+2. Compare power/cadence/resistance with MyWhoosh during a structured ERG workout and HR with Garmin.
+3. Validate resistance behavior during ERG load transitions and confirm its FE-C semantics in practice.
+4. Continue validating smoothing and packet-health behavior on real ANT traffic.
 5. Automate Training Mode only after the real telemetry path is proven stable.
 6. Enable zone lighting only when explicitly opted in.
 
