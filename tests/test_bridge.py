@@ -175,7 +175,7 @@ def test_connect_publishes_availability_discovery_and_state(bridge_module):
 
 def test_supervisor_mqtt_service_without_token(monkeypatch, bridge_module):
     monkeypatch.delenv("SUPERVISOR_TOKEN", raising=False)
-    assert bridge_module.supervisor_mqtt_service() is None
+    assert bridge_module.real_supervisor_mqtt_service() is None
 
 
 def test_supervisor_mqtt_service_success(monkeypatch, bridge_module):
@@ -205,7 +205,7 @@ def test_supervisor_mqtt_service_success(monkeypatch, bridge_module):
             self.closed = True
 
     monkeypatch.setattr(bridge_module.http.client, "HTTPConnection", FakeConnection)
-    result = bridge_module.supervisor_mqtt_service()
+    result = bridge_module.real_supervisor_mqtt_service()
 
     assert result == {"host": "broker", "port": 1883}
 
