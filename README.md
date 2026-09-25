@@ -33,7 +33,9 @@ The bridge creates one MQTT device named **ANT+ Trainer** with:
 - Trainer Cadence
 - Trainer Speed
 - Trainer Active
-- ANT Device ID
+- Heart Rate (ANT+ HR profile; tested target is Garmin HRM 600)
+- Trainer ANT Device ID
+- HR ANT Device ID
 - Bridge Source
 
 ## MQTT
