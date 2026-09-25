@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1
+- Require Home Assistant Supervisor-provided MQTT and remove manual broker credential fallback.
+- Run the long-lived bridge as unprivileged UID/GID 10001.
+- Move runtime base to Python 3.12 slim Trixie and pin its multi-arch digest.
+- Exact-pin OpenANT, PyUSB and paho-mqtt runtime dependencies.
+- Pin every GitHub Action to an immutable upstream commit SHA.
+- Generate image SBOM and provenance.
+- Keep OWASP-aligned tests/security scanning in CI.
+
 ## 0.3.0
 - Add 3 s, 10 s and 30 s power smoothing sensors.
 - Add live session elapsed time, average/max power and average/max heart rate.
