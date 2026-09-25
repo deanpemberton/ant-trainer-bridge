@@ -260,3 +260,39 @@ def test_close_marks_bridge_offline(bridge_module):
     bridge.close()
 
     assert ("home/trainer/availability", "offline", True) in bridge.mqtt.published
+
+
+def test_simulation_profile_covers_all_power_zones_slowly(bridge_module):
+    # Profile is designed around the current 215 W FTP used by the HA cockpit.
+    ftp = 215
+    steps = bridge_module.SIMULATION_STEPS
+
+    assert len(steps) >= 8
+    powers = [step["power"] for step in steps if step["power"] > 0]
+    durations = [step["duration"] for step in steps if step["power"] > 0]
+
+    def zone(power):
+        ratio = power / ftp
+        if ratio < 0.56:
+            return "Z1"
+        if ratio < 0.76:
+            return "Z2"
+        if ratio < 0.91:
+            return "Z3"
+        if ratio < 1.06:
+            return "Z4"
+        if ratio < 1.21:
+            return "Z5"
+        return "Z6"
+
+    zones = [zone(power) for power in powers]
+    for required in ("Z1", "Z2", "Z3", "Z4", "Z5", "Z6"):
+        assert required in zones
+
+    # Give the dashboard enough time to make each zone transition visually obvious.
+    assert min(durations) >= 20
+
+    # The profile should rise through the zones and then come back down.
+    peak_index = powers.index(max(powers))
+    assert powers[:peak_index + 1] == sorted(powers[:peak_index + 1])
+    assert powers[peak_index:] == sorted(powers[peak_index:], reverse=True)
