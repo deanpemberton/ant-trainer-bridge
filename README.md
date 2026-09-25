@@ -21,6 +21,10 @@ Early development, but the full non-hardware path is implemented:
 - automatic Home Assistant Supervisor MQTT service discovery
 - MQTT Discovery
 - simulation mode
+- 3 s / 10 s / 30 s power smoothing
+- live session elapsed / average / max metrics
+- trainer and HR packet-age / connectivity diagnostics
+- Training Cockpit Lovelace dashboard template
 - multi-architecture GHCR build workflow
 
 Simulation mode is enabled by default so the MQTT and Home Assistant side can be tested before the ANT+ dongle arrives.
@@ -30,10 +34,16 @@ Simulation mode is enabled by default so the MQTT and Home Assistant side can be
 The bridge creates one MQTT device named **ANT+ Trainer** with:
 
 - Trainer Power
+- Power 3s / Power 10s / Power 30s
 - Trainer Cadence
 - Trainer Speed
 - Trainer Active
 - Heart Rate (ANT+ HR profile; tested target is Garmin HRM 600)
+- Session Elapsed
+- Session Average / Max Power
+- Session Average / Max Heart Rate
+- Trainer Packet Age / Trainer Signal
+- HR Packet Age / HR Signal
 - Trainer ANT Device ID
 - HR ANT Device ID
 - Bridge Source
@@ -62,7 +72,7 @@ so Home Assistant Supervisor maps raw USB access and the host udev database into
 
 ## Simulation
 
-With `simulation: true`, the bridge emits a repeating series of power/cadence values. This lets us validate:
+With `simulation: true`, the bridge emits a repeating one-second power/cadence/heart-rate stream. This lets us validate:
 
 `App -> Mosquitto -> MQTT Discovery -> Home Assistant entities -> training-zone automation`
 
@@ -81,7 +91,7 @@ and publishes a multi-architecture image to:
 
 Tags currently include:
 
-- `0.1.0`
+- `0.3.0`
 - `latest` on the default branch
 - Git tag names for `v*` releases
 
@@ -104,15 +114,21 @@ Once the GHCR package is pullable:
 6. Confirm the **ANT+ Trainer** MQTT device/entities appear.
 7. When the ANT stick arrives, plug it into the Green, confirm USB detection, then set `simulation: false`.
 
+## Training Cockpit
+
+A ready-to-use sections dashboard template lives at `dashboards/training-cockpit.yaml`. It includes live power, HR, cadence, 3/10/30-second smoothing, session metrics, ANT+ health, Training Mode and the opt-in Zone Lighting switch.
+
+The template assumes the helper entities currently used on the target Home Assistant instance (`sensor.trainer_power_zone`, `input_number.cycling_ftp`, `input_boolean.downstairs_training_mode`, `input_boolean.trainer_zone_lighting`, and `climate.office`).
+
 ## Roadmap
 
 1. Prove simulation and MQTT Discovery on the real Home Assistant Green.
 2. Verify Garmin ANT stick USB VID/PID.
 3. Discover the JetBlack Victory FE-C broadcast.
 4. Compare power/cadence against MyWhoosh.
-5. Add smoothed power and cycling-zone entities.
+5. Validate smoothing and signal-health metrics against real ANT+ traffic.
 6. Drive Training Mode automatically from trainer activity.
-7. Drive office Hue colour from sustained training zone.
+7. Drive office Hue colour from sustained training zone when explicitly enabled.
 
 ## License
 
